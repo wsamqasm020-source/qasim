@@ -1,0 +1,2893 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="unsafe-url">
+    <title>مليون فيزياء - لعبة الأسئلة الفيزيائية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 50%, #0a0a2e 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            color: white;
+        }
+
+        /* ===== CANVAS BACKGROUND ===== */
+        #physicsCanvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ===== MAIN GAME ===== */
+        .game-container {
+            position: relative;
+            z-index: 10;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 900;
+            text-align: center;
+            margin: 20px 0 5px 0;
+            background: linear-gradient(45deg, #ffd700, #ffed4a, #ffd700);
+            background-clip: text; /* standard property for compatibility */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        .audio-panel {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+            color: #c0c0e0;
+        }
+
+        .audio-panel audio {
+            display: none;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 10px rgba(255,215,0,0.5)); }
+            to { filter: drop-shadow(0 0 30px rgba(255,215,0,0.8)); }
+        }
+
+        /* ===== START SCREEN ===== */
+        .start-screen {
+            text-align: center;
+            padding: 10px 40px 40px;
+        }
+
+        .start-screen h2 {
+            font-size: 1.8rem;
+            margin-bottom: 16px;
+            color: #a0d2ff;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #ffd700, #ff8c00);
+            border: none;
+            padding: 20px 60px;
+            font-size: 1.5rem;
+            font-family: 'Tajawal', sans-serif;
+            font-weight: 700;
+            color: #1a1a4e;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 40px rgba(255, 215, 0, 0.4);
+        }
+
+        .start-screen,
+        .game-screen,
+        .game-over,
+        .stage-selection-screen {
+            position: relative;
+        }
+
+        .stage-selection-screen h2 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            margin-top: 0;
+            padding-top: 120px;
+        }
+
+        .stage-selection-screen p {
+            color: #b8d4ff;
+            margin-bottom: 30px;
+            max-width: 760px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.7;
+        }
+
+        .stage-map-wrapper {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 25px;
+            padding: 28px 24px 24px;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: visible;
+            margin-bottom: 20px;
+        }
+
+        .stage-map-wrapper::before {
+            display: none;
+        }
+
+        .stages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+            margin-top: 0;
+            position: relative;
+            z-index: 2;
+            width: 100%;
+        }
+
+        .stages-grid::-webkit-scrollbar { display: none; }
+
+        .stage-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 22px;
+            padding: 22px;
+            min-height: 230px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stage-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.12), transparent 45%);
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        .stage-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 75px rgba(0,0,0,0.26);
+        }
+
+        .stage-card.current {
+            border-color: #39ff9e;
+            box-shadow: 0 25px 85px rgba(57,255,158,0.22);
+            background: linear-gradient(180deg, rgba(57,255,158,0.12), rgba(255,255,255,0.04));
+        }
+
+        .stage-card.unlocked {
+            border-color: rgba(0,230,118,0.35);
+        }
+
+        .stage-card.locked {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(0.45);
+        }
+
+        .stage-node {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 18px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .stage-circle {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: #fff;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: inset 0 0 15px rgba(255,255,255,0.08);
+        }
+
+        .stage-card.current .stage-circle {
+            background: linear-gradient(135deg, #00e676, #00c853);
+            color: #081b12;
+        }
+
+        .stage-badge {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            color: #c0e7ff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .stage-card h3 {
+            margin-bottom: 10px;
+            color: #ffd700;
+            font-size: 1.2rem;
+        }
+
+        .stage-card p {
+            color: #d7e1ff;
+            line-height: 1.6;
+            margin-bottom: 18px;
+            min-height: 48px;
+        }
+
+        .stage-card .stage-detail {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 0.95rem;
+            color: #c0c0e0;
+            margin-bottom: 18px;
+        }
+
+        .stage-card button {
+            background: linear-gradient(45deg, #00c853, #00e676);
+            border: none;
+            padding: 14px 24px;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-family: 'Tajawal', sans-serif;
+            cursor: pointer;
+            color: white;
+            transition: transform 0.2s ease, background 0.2s ease;
+            z-index: 2;
+        }
+
+        .stage-card button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(45deg, #00e676, #00c853);
+        }
+
+        .stage-card.locked button {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            cursor: default;
+        }
+
+        .stage-card .stage-detail span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stage-card:not(:last-child)::after {
+            display: none;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(255, 215, 0, 0.6);
+        }
+
+        /* ===== QUESTION CARD ===== */
+        .question-card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            margin: 20px 0;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .level-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            padding: 8px 25px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            line-height: 1.8;
+            margin-bottom: 25px;
+            color: #fff;
+        }
+
+        /* ===== ANSWER BUTTONS ===== */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-items: stretch;
+        }
+
+        /* إذا عدد الأزرار فردي، الزر الأخير يمتد على العرض كامل */
+        .answers-grid .answer-btn:last-child:nth-child(odd) {
+            grid-column: 1 / -1;
+        }
+
+        .answer-btn {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: normal;
+            word-break: break-word;
+            min-height: 90px;
+            height: 100%;
+            width: 100%;
+        }
+
+        .answer-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,215,0,0.5);
+            transform: translateY(-3px);
+        }
+
+        .answer-btn.correct {
+            background: linear-gradient(45deg, #00c853, #00e676);
+            border-color: #00e676;
+            animation: correctPulse 0.6s ease;
+        }
+
+        .answer-btn.wrong {
+            background: linear-gradient(45deg, #ff1744, #ff5252);
+            border-color: #ff5252;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes correctPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        /* ===== SCORE BOARD ===== */
+        .score-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .score-item {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            padding: 12px 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .score-item .label {
+            font-size: 0.75rem;
+            color: #a0a0c0;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .score-item .value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffd700;
+            word-break: break-word;
+            line-height: 1.3;
+        }
+
+        /* على الموبايل: صفّين كل صف 3 */
+        @media (max-width: 500px) {
+            .score-board {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 7px;
+            }
+            .score-item {
+                padding: 8px 6px;
+                border-radius: 10px;
+            }
+            .score-item .label {
+                font-size: 0.68rem;
+            }
+            .score-item .value {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        /* ===== GAME OVER ===== */
+        .game-over {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .game-over h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .final-score {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #ffd700;
+            margin: 20px 0;
+        }
+
+        .restart-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            padding: 15px 50px;
+            font-size: 1.2rem;
+            font-family: 'Tajawal', sans-serif;
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #ffffff;
+            padding: 10px 18px;
+            font-size: 1rem;
+            border-radius: 999px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease, background 0.2s ease;
+            margin-top: 0;
+            z-index: 999;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(68, 68, 68, 0.8);
+        }
+
+        .restart-btn:hover,
+        .start-btn:hover,
+        .add-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .back-btn:hover,
+        .restart-btn:hover,
+        .start-btn:hover,
+        .add-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== RESPONSIVE LAYOUT ===== */
+
+        /* Responsive root font sizing */
+        html { font-size: clamp(14px, 1.4vw, 18px); }
+
+        /* Container adjustments */
+        .game-container {
+            width: 100%;
+            max-width: 1100px;
+            padding: 18px;
+        }
+
+        /* Make stage roadmap adapt on small screens */
+        @media (max-width: 700px) {
+            .stages-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .stage-card {
+                border-radius: 16px;
+                padding: 16px;
+                min-height: auto;
+            }
+
+            .stage-map-wrapper { padding: 18px 14px; }
+
+            .logo { font-size: 2rem; }
+            .start-btn { padding: 14px 30px; font-size: 1.15rem; }
+            .question-card { padding: 18px; }
+
+            .stage-card button, .start-btn, .restart-btn { padding: 14px; font-size: 1rem; }
+            .stage-card button { width: 100%; }
+        }
+
+        @media (min-width: 701px) and (max-width: 1050px) {
+            .stages-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+        }
+
+        @media (min-width: 1051px) {
+            .stages-grid {
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .game-container { max-width: 1200px; }
+        }
+
+        /* Make controls easier to tap on very small screens */
+        @media (max-width: 420px) {
+            .back-btn { top: 10px; right: 8px; padding: 8px 12px; font-size: 0.95rem; }
+            .logo { font-size: 1.8rem; }
+        }
+
+        /* Ensure canvas covers background on all sizes */
+        #physicsCanvas { width: 100vw; height: 100vh; }
+
+        /* ===== PARTICLES ===== */
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+            border-radius: 50%;
+        }
+
+        /* ===== TOP LEFT LOGO ===== */
+        .top-logo-wrapper {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 1001;
+            width: 110px;
+            height: 110px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            transition: all 0.4s ease;
+        }
+
+        .top-logo-wrapper.centered {
+            left: 50%;
+            transform: translateX(-50%);
+            top: 30px;
+            width: 130px;
+            height: 130px;
+        }
+
+        .top-logo {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255,255,255,0.7);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.3);
+            animation: logoPulse 3s ease-in-out infinite;
+            pointer-events: all;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 12px rgba(255,215,0,0.5)); }
+            50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(255,215,0,0.8)); }
+        }
+
+        /* ===== HIDDEN ADMIN PANEL ===== */
+        .admin-trigger {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 30px;
+            height: 30px;
+            background: transparent;
+            cursor: pointer;
+            z-index: 1000;
+            border-radius: 5px;
+        }
+
+        .admin-trigger:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .admin-panel {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(10, 10, 46, 0.98);
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .admin-header h2 {
+            color: #ffd700;
+            font-size: 1.8rem;
+        }
+
+        .close-admin {
+            background: #ff1744;
+            border: none;
+            color: white;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-family: 'Tajawal', sans-serif;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .admin-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .admin-section h3 {
+            color: #a0d2ff;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #c0c0e0;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(30,30,70,0.95);
+            color: white;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+        }
+
+        .form-group select option {
+            background: #1a1a4e;
+            color: white;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+
+        .add-btn {
+            background: linear-gradient(45deg, #00c853, #00e676);
+            border: none;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .questions-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .question-item {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .question-item .q-text {
+            flex: 1;
+            margin-left: 15px;
+        }
+
+        .delete-btn {
+            background: #ff1744;
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffd700;
+        }
+
+        .stat-card .label {
+            color: #a0a0c0;
+            margin-top: 5px;
+        }
+
+        /* ===== CONFETTI ===== */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        /* ===== HINT TEXT ===== */
+        .hint-text {
+            color: #ffd700;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        .hint-text.show {
+            opacity: 1;
+        }
+
+        /* ===== PHYSICS DEMO BOX ===== */
+        .physics-demo {
+            width: 100%;
+            height: 200px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 800px) {
+            .game-container {
+                padding: 15px;
+            }
+            .top-logo-wrapper {
+                width: 80px;
+                height: 80px;
+                top: 10px;
+                left: 10px;
+            }
+            .top-logo-wrapper.centered {
+                left: 50%;
+                transform: translateX(-50%);
+                top: 20px;
+                width: 100px;
+                height: 100px;
+            }
+            .top-logo {
+                width: 70px;
+                height: 70px;
+            }
+            .progress-container {
+                margin: 15px 0;
+            }
+            .question-card {
+                padding: 20px;
+            }
+            .restart-btn,
+            .start-btn,
+            .add-btn {
+                width: 100%;
+                padding: 16px 20px;
+            }
+            .admin-panel {
+                padding: 20px;
+            }
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            .close-admin {
+                width: 100%;
+            }
+            .admin-section {
+                padding: 20px;
+            }
+            .question-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .question-item .q-text {
+                margin-left: 0;
+                margin-bottom: 10px;
+            }
+            .delete-btn {
+                width: 100%;
+            }
+            .audio-panel {
+                width: 100%;
+                max-width: 100%;
+            }
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                font-size: 0.95rem;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .logo {
+                font-size: 1.8rem;
+            }
+            .answers-grid {
+                grid-template-columns: 1fr;
+            }
+            .question-text {
+                font-size: 1rem;
+            }
+            .final-score {
+                font-size: 2rem;
+            }
+            .game-over {
+                padding: 25px;
+            }
+            .admin-section {
+                padding: 18px;
+            }
+            .admin-header h2 {
+                font-size: 1.4rem;
+            }
+        }
+
+        /* ===== HIDDEN ===== */
+        .hidden { display: none !important; }
+
+        /* ===== START SCREEN ENTRANCE ANIMATION ===== */
+        @keyframes slideDownCenter {
+            0% {
+                opacity: 0;
+                transform: translateY(-80px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #startScreen {
+            animation: slideDownCenter 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        #gameTitle {
+            animation: slideDownCenter 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0s both;
+        }
+
+        #startScreen > * {
+            animation: slideDownCenter 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        #startScreen > *:nth-child(1) { animation-delay: 0.1s; }
+        #startScreen > *:nth-child(2) { animation-delay: 0.2s; }
+        #startScreen > *:nth-child(3) { animation-delay: 0.3s; }
+        #startScreen > *:nth-child(4) { animation-delay: 0.4s; }
+        #startScreen > *:nth-child(5) { animation-delay: 0.5s; }
+
+        .game-container {
+            justify-content: center;
+        }
+
+        /* ===== SETTINGS BUTTON ===== */
+        .settings-btn {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: #c0d0ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transition: background 0.25s, transform 0.25s, color 0.25s;
+        }
+        .settings-btn:hover {
+            background: rgba(255,215,0,0.18);
+            border-color: rgba(255,215,0,0.5);
+            color: #ffd700;
+            transform: rotate(45deg) scale(1.08);
+        }
+
+        /* ===== LEADERBOARD ===== */
+        .lb-tab {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #c0c0e0;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lb-tab.active {
+            background: linear-gradient(45deg, #f7971e, #ffd200);
+            color: #1a1a3e;
+            border-color: transparent;
+            font-weight: 700;
+        }
+        .lb-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+        .lb-rank {
+            font-size: 1.4rem;
+            font-weight: 900;
+            min-width: 36px;
+            text-align: center;
+        }
+        .lb-name {
+            flex: 1;
+            font-size: 1.05rem;
+            color: #fff;
+        }
+        .lb-score {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ffd700;
+            white-space: nowrap;
+        }
+        .lb-stage {
+            font-size: 0.82rem;
+            color: #a0b0d0;
+            white-space: nowrap;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+
+    <!-- Physics Background Canvas -->
+    <canvas id="physicsCanvas"></canvas>
+
+    <!-- Top Left Logo -->
+    <div class="top-logo-wrapper">
+        <img src="data:image/svg+xml,%3Csvg xmlns='https://kommodo.ai/i/wu0lJZ8f0BWY2CKrNzN2' viewBox='0 0 120 120'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0%25' stop-color='%23ffd700'/%3E%3Cstop offset='100%25' stop-color='%23338cff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='60' cy='60' r='56' fill='url(%23g)' /%3E%3Cpath d='M60 28l7.4 24.1h25.3l-20.5 14.9 7.8 24.3L60 76.4 40 91.3l7.8-24.3L27.3 52.1h25.3z' fill='%23fff' opacity='0.8'/%3E%3C/svg%3E" alt="شعار اللعبة" id="topLogoImage" class="top-logo">
+    </div>
+
+    <!-- Hidden Admin Trigger (Top Left Corner) -->
+    <div class="admin-trigger" onclick="openAdmin()" title="لوحة التحكم"></div>
+
+    <!-- Settings Button (Top Right) -->
+    <button class="settings-btn" onclick="openAdmin()" title="الإعدادات">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </button>
+
+    <!-- Admin Panel -->
+    <div class="admin-panel" id="adminPanel">
+        <div class="admin-header">
+            <h2>⚙️ لوحة تحكم الأستاذ <span id="adminNameHeader" style="font-size:0.8rem; color:#fff; opacity:0.8;"></span></h2>
+            <button class="close-admin" onclick="closeAdmin()">إغلاق</button>
+        </div>
+
+        <div class="admin-section" style="background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,140,0,0.05)); border-color: rgba(255,215,0,0.25);">
+            <h3 style="color:#ffd700;">✏️ اسم اللعبة</h3>
+            <div class="form-group" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="gameNameInput" placeholder="مثال: ⚡ مليون فيزياء ⚡"
+                    style="flex:1; font-size:1.15rem; font-weight:700; color:#ffd700; background:rgba(0,0,0,0.3); border-color:rgba(255,215,0,0.3);"
+                    oninput="previewGameName(this.value)">
+                <button class="add-btn" onclick="saveGameName()" style="white-space:nowrap; padding:12px 22px;">💾 حفظ</button>
+                <button class="add-btn" onclick="resetGameName()" style="background:linear-gradient(45deg,#555,#777); white-space:nowrap; padding:12px 22px;">↩️ افتراضي</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <h3>🔊 الصوت</h3>
+            <div class="form-group">
+                <label>اختر ملف صوتي:</label>
+                <input type="file" id="audioUploadFile" accept="audio/*" onchange="prepAudioUpload(this)">
+            </div>
+            <div class="form-group">
+                <label>مستوى الصوت:</label>
+                <input type="range" id="audioVolumeSlider" min="0" max="100" value="80" oninput="setAudioVolume(this.value)">
+                <div id="audioVolumeLabel" style="color: #a0d2ff; margin-top: 8px;">الصوت: 80%</div>
+            </div>
+            <p id="audioUploadStatus" style="color: #c0c0e0; margin-top: 10px;">لم يتم اختيار أي ملف بعد.</p>
+            <p id="audioInfoLabel" style="display:none;"></p>
+            <button class="add-btn" onclick="saveAudioSettings()">💾 حفظ الصوت</button>
+            <button class="add-btn" onclick="resetAudioFile()" style="background: linear-gradient(45deg, #ff1744, #ff5252); margin-left: 10px;">♻️ إعادة الافتراضي</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>👤 بيانات المشرف</h3>
+            <div class="form-group">
+                <label>اسم العرض للمشرف:</label>
+                <input type="text" id="adminDisplayName" placeholder="اكتب اسم المشرف هنا">
+            </div>
+            <div class="form-group">
+                <label>كلمة دخول لوحة التحكم (افتراضي: admin):</label>
+                <input type="password" id="adminKey" placeholder="اكتب كلمة الدخول الجديدة">
+            </div>
+            <p style="color: #a0a0a0; font-size: 0.95rem; margin-top: -5px;">اترك كلمة الدخول فارغة إذا لم ترد تغييرها.</p>
+            <button class="add-btn" onclick="saveAdminSettings()" style="margin-bottom: 10px;">💾 حفظ بيانات المشرف</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>🖼️ شعار اللعبة</h3>
+            <div class="form-group">
+                <label>اختر صورة شعار من جهازك:</label>
+                <input type="file" id="logoUploadFile" accept="image/*" onchange="uploadLogoImage(this)">
+            </div>
+            <button class="add-btn" onclick="saveLogoSettings()">💾 حفظ الشعار</button>
+            <button class="add-btn" onclick="resetLogoImage()" style="background: linear-gradient(45deg, #ff1744, #ff5252); margin-left: 10px;">♻️ إعادة الشعار الافتراضي</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>➕ إضافة سؤال جديد</h3>
+            <div class="form-group">
+                <label>نص السؤال:</label>
+                <textarea id="newQuestion" placeholder="اكتب السؤال هنا..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>الإجابة الأولى:</label>
+                <input type="text" id="ans1" placeholder="الإجابة الأولى">
+            </div>
+            <div class="form-group">
+                <label>الإجابة الثانية:</label>
+                <input type="text" id="ans2" placeholder="الإجابة الثانية">
+            </div>
+            <div class="form-group">
+                <label>الإجابة الثالثة:</label>
+                <input type="text" id="ans3" placeholder="الإجابة الثالثة">
+            </div>
+            <div class="form-group">
+                <label>أي خيار هو الصحيح؟</label>
+                <select id="correctAnswerIndex">
+                    <option value="0">الإجابة الأولى</option>
+                    <option value="1">الإجابة الثانية</option>
+                    <option value="2">الإجابة الثالثة</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>المرحلة التي سيتم إضافة السؤال إليها:</label>
+                <select id="questionStageSelect"></select>
+            </div>
+            <div class="form-group">
+                <label>تلميح (اختياري):</label>
+                <input type="text" id="hint" placeholder="تلميح يساعد الطالب">
+            </div>
+            <button class="add-btn" onclick="addQuestion()">➕ إضافة السؤال</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>📋 قائمة الأسئلة</h3>
+            <div class="questions-list" id="questionsList"></div>
+        </div>
+
+        <div class="admin-section">
+            <h3>🎯 إضافة مرحلة جديدة</h3>
+            <div class="form-group">
+                <label>اسم المرحلة الجديدة:</label>
+                <input type="text" id="newStageName" placeholder="مثال: المستوى المتقدم">
+            </div>
+            <div class="form-group">
+                <label>وصف المرحلة الجديدة:</label>
+                <textarea id="newStageDescription" placeholder="وصف يوضح محتوى المرحلة"></textarea>
+            </div>
+            <div class="form-group">
+                <label>عدد الأسئلة:</label>
+                <input type="number" id="newStageQuestionCount" min="1" value="5">
+            </div>
+            <div class="form-group">
+                <label>نسبة النجاح (%):</label>
+                <input type="number" id="newStagePassPercent" min="0" max="100" value="60">
+            </div>
+            <div class="form-group">
+                <label>حالة المرحلة عند الإضافة:</label>
+                <select id="newStageUnlocked">
+                    <option value="false">🔒 مقفلة</option>
+                    <option value="true">🔓 مفتوحة</option>
+                </select>
+            </div>
+            <button class="add-btn" onclick="addNewStage()" style="background: linear-gradient(45deg, #39ff9e, #00e676); width: 100%; margin-top: 15px;">➕ إضافة المرحلة</button>
+            <button class="add-btn" onclick="resetStageProgress()" style="background: linear-gradient(45deg, #ff1744, #ff5252); width: 100%; margin-top: 10px;">♻️ إعادة تعيين جميع المراحل</button>
+        </div>
+
+        <div class="admin-section">
+            <h3>📋 قائمة المراحل</h3>
+            <div class="questions-list" id="stagesList"></div>
+        </div>
+
+        <div class="admin-section">
+            <h3>💾 حفظ / تحميل</h3>
+            <button class="add-btn" onclick="exportQuestions()" style="margin-left: 10px;">💾 تصدير الأسئلة</button>
+            <button class="add-btn" onclick="document.getElementById('importFile').click()">📁 استيراد أسئلة</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importQuestions(this)">
+            <button class="add-btn" onclick="clearLeaderboard()" style="background: linear-gradient(45deg, #b71c1c, #ff1744); margin-left: 10px; margin-top: 10px;">🏆 مسح التصنيف</button>
+        </div>
+    </div>
+
+    <!-- Main Game -->
+    <div class="game-container">
+        <h1 class="logo" id="gameTitle">⚡مليون الفيزياء مع الاستاذ محمد البسام ⚡</h1>
+        <audio id="gameAudioPlayer" loop preload="auto" class="hidden"></audio>
+
+        <!-- Start Screen -->
+        <div class="start-screen" id="startScreen">
+            <h2>اختبر معلوماتك في الفيزياء!</h2>
+            <div class="form-group">
+                <label>اسم الطالب:</label>
+                <input type="text" id="playerName" placeholder="اكتب اسمك هنا">
+            </div>
+            <button class="start-btn" onclick="openStageSelection()">🚀 ابدأ اللعبة</button>
+            <button class="start-btn" style="margin-top: 15px; background: linear-gradient(45deg, #f7971e, #ffd200);" onclick="openLeaderboard()">🏆 التصنيف</button>
+        </div>
+
+        <div class="start-screen hidden" id="stageSelectionScreen" style="padding-top: 130px;">
+            <h1 class="logo" style="font-size:2rem; margin-bottom: 20px;" id="stageTitleDisplay"></h1>
+            <div class="stage-map-wrapper">
+                <div class="stages-grid" id="stageCards"></div>
+            </div>
+            <div id="noQuestionsMsg" style="display:none; background: rgba(255,71,87,0.15); border: 1px solid rgba(255,71,87,0.4); border-radius: 14px; padding: 18px 22px; margin-top: 16px; text-align: center;">
+                <span style="font-size: 1.5rem;">⚠️</span>
+                <p style="color: #ff6b6b; font-size: 1.05rem; margin-top: 8px; margin-bottom: 0;" id="noQuestionsText">لا توجد أسئلة لهذه المرحلة. يرجى إضافة أسئلة من لوحة التحكم.</p>
+            </div>
+            <button class="back-btn" id="stageSelectionBackBtn" onclick="showStartScreen()">🔙 العودة</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div class="game-screen hidden" id="gameScreen">
+            <div class="score-board">
+                <div class="score-item">
+                    <div class="label">الإجابات الصحيحة</div>
+                    <div class="value" id="correctCount">0</div>
+                </div>
+                <div class="score-item">
+                    <div class="label">السؤال</div>
+                    <div class="value"><span id="currentQ">1</span> / <span id="totalQ">10</span></div>
+                </div>
+                <div class="score-item">
+                    <div class="label">المستوى</div>
+                    <div class="value" id="level">1</div>
+                </div>
+                <div class="score-item">
+                    <div class="label">اسم المرحلة</div>
+                    <div class="value" id="stageName">غير محدد</div>
+                </div>
+                <div class="score-item">
+                    <div class="label">الطالب</div>
+                    <div class="value" id="playerDisplay">غير محدد</div>
+                </div>
+                <div class="score-item">
+                    <div class="label">مشرف الموقع</div>
+                    <div class="value" id="adminDisplay">غير محدد</div>
+                </div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <button class="back-btn" id="backToMainBtn" onclick="showStartScreen()">🔙 العودة</button>
+
+            <div class="question-card">
+                <div class="level-badge" id="levelBadge">المستوى 1</div>
+                <div class="question-text" id="questionText">جارٍ التحميل...</div>
+                <div class="hint-text" id="hintText"></div>
+                <div class="answers-grid" id="answersGrid"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="game-over hidden" id="gameOverScreen">
+            <h2 id="endTitle">🎉 مبروك!</h2>
+            <div class="final-score" id="finalScore">0</div>
+            <p style="font-size: 1.2rem; color: #a0a0c0; margin-bottom: 10px;">إجابات صحيحة</p>
+            <p id="endMessage" style="color: #ffd700; font-size: 1.1rem; margin-bottom: 20px;"></p>
+            <button class="restart-btn" id="retryBtn" onclick="startGame(selectedStage ? selectedStage.id : undefined)">🔄 حاول مرة أخرى</button>
+            <button class="back-btn" id="gameOverBackBtn" onclick="showStartScreen()">🔙 العودة</button>
+            <button class="restart-btn hidden" id="nextStageBtn" onclick="playNextStage()">➡️ المرحلة التالية</button>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div id="leaderboardModal" style="display:none; position:fixed; inset:0; background:rgba(5,5,30,0.92); z-index:3000; overflow-y:auto; padding:24px 16px;">
+        <div style="max-width:700px; margin:0 auto; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); border-radius:24px; padding:28px 24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;">
+                <h2 style="color:#ffd700; font-size:1.6rem;">🏆 تصنيف الطلاب</h2>
+                <button onclick="closeLeaderboard()" style="background:#ff1744; border:none; color:white; padding:8px 20px; border-radius:8px; font-family:'Tajawal',sans-serif; font-size:1rem; cursor:pointer;">إغلاق</button>
+            </div>
+
+            <!-- Tabs -->
+            <div style="display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+                <button class="lb-tab active" id="tab-perfect" onclick="switchLbTab('perfect')">🌟 إجابات كاملة</button>
+                <button class="lb-tab" id="tab-top" onclick="switchLbTab('top')">🥇 أعلى نتيجة</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="lb-content"></div>
+        </div>
+    </div>
+
+<script>
+// ==================== PHYSICS BACKGROUND ====================
+const canvas = document.getElementById('physicsCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let atoms = [];
+
+// ===== GAME STATE (مُعرف مبكراً لتجنب أخطاء "Cannot access ... before initialization") =====
+let questions;
+let gameStats;
+let currentQuestion = 0;
+let correctCount = 0;
+let shuffledQuestions = [];
+let gameActive = false;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+class PhysicsParticle {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = (Math.random() - 0.5) * 2;
+        this.radius = Math.random() * 3 + 1;
+        this.color = `hsl(${Math.random() * 60 + 180}, 70%, 60%)`;
+        this.trail = [];
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+        this.trail.push({x: this.x, y: this.y});
+        if (this.trail.length > 20) this.trail.shift();
+    }
+
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+
+        // Trail
+        ctx.beginPath();
+        for (let i = 0; i < this.trail.length; i++) {
+            const alpha = i / this.trail.length * 0.3;
+            ctx.fillStyle = this.color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
+            ctx.beginPath();
+            ctx.arc(this.trail[i].x, this.trail[i].y, this.radius * (i/this.trail.length), 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+}
+
+class Atom {
+    constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.nucleusRadius = 6;
+        this.electrons = [];
+        for (let i = 0; i < 3; i++) {
+            this.electrons.push({
+                angle: Math.random() * Math.PI * 2,
+                speed: 0.02 + Math.random() * 0.03,
+                distance: 20 + Math.random() * 30,
+                orbitAngle: Math.random() * Math.PI
+            });
+        }
+    }
+
+    update() {
+        this.electrons.forEach(e => {
+            e.angle += e.speed;
+        });
+    }
+
+    draw() {
+        // Nucleus
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.nucleusRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffd700';
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ffd700';
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Electrons
+        this.electrons.forEach(e => {
+            const ex = this.x + Math.cos(e.angle) * e.distance;
+            const ey = this.y + Math.sin(e.angle) * e.distance * Math.cos(e.orbitAngle);
+
+            ctx.beginPath();
+            ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#00e5ff';
+            ctx.fill();
+
+            // Orbit line
+            const orbitRadiusY = Math.abs(e.distance * Math.cos(e.orbitAngle));
+            ctx.beginPath();
+            ctx.ellipse(this.x, this.y, e.distance, orbitRadiusY, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0, 229, 255, 0.1)';
+            ctx.stroke();
+        });
+    }
+}
+
+// Initialize (responsive counts)
+(function initBackgroundElements(){
+    const isMobile = window.matchMedia('(max-width: 700px)').matches;
+    const isSmallTablet = window.matchMedia('(max-width: 1100px)').matches && !isMobile;
+    const particleCount = isMobile ? 12 : (isSmallTablet ? 30 : 50);
+    const atomCount = isMobile ? 0 : (isSmallTablet ? 2 : 5);
+
+    particles = [];
+    atoms = [];
+    for (let i = 0; i < particleCount; i++) particles.push(new PhysicsParticle());
+    for (let i = 0; i < atomCount; i++) atoms.push(new Atom());
+})();
+
+function animateBackground() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw connections
+    particles.forEach((p1, i) => {
+        particles.forEach((p2, j) => {
+            if (i >= j) return;
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 150) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = `rgba(100, 200, 255, ${0.1 * (1 - dist/150)})`;
+                ctx.stroke();
+            }
+        });
+    });
+
+    // Reduce drawing work on mobile by skipping some updates when particles small
+    const isMobile = window.matchMedia('(max-width: 700px)').matches;
+    if (isMobile) {
+        // draw fewer frames for particles to save CPU
+        particles.forEach((p, idx) => { if (idx % 1 === 0) { p.update(); p.draw(); }});
+        atoms.forEach(a => { /* skip atoms on mobile */ });
+    } else {
+        particles.forEach(p => { p.update(); p.draw(); });
+        atoms.forEach(a => { a.update(); a.draw(); });
+    }
+
+    requestAnimationFrame(animateBackground);
+}
+animateBackground();
+
+// ==================== SERVER SYNC ====================
+const API_BASE = '';
+
+async function fetchFromServer(endpoint) {
+    try {
+        const res = await fetch(`${API_BASE}/api/${endpoint}?t=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!res.ok) throw new Error('Server error: ' + res.status);
+        return await res.json();
+    } catch (e) {
+        console.warn('Server fetch failed for ' + endpoint + ':', e.message);
+        return null;
+    }
+}
+
+async function saveToServer(endpoint, data) {
+    try {
+        const res = await fetch(`${API_BASE}/api/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Server save failed: ' + res.status);
+        return true;
+    } catch (e) {
+        console.warn('Server save failed for ' + endpoint + ':', e.message);
+        return false;
+    }
+}
+
+// ==================== GAME DATA ====================
+let defaultQuestions = [
+    {
+        question: "ما هي وحدة قياس القوة في النظام الدولي؟",
+        answers: ["نيوتن", "جول", "واط"],
+        correct: 0,
+        stageId: 1,
+        difficulty: 1,
+        points: 100,
+        hint: "سميت على اسم عالم إنجليزي مشهور"
+    },
+    {
+        question: "ما هو التسارع الجاذبي للأرض تقريباً؟",
+        answers: ["9.8 m/s²", "10 m/s²", "8.9 m/s²"],
+        correct: 0,
+        stageId: 1,
+        difficulty: 1,
+        points: 100,
+        hint: "اقرب لـ 10"
+    },
+    {
+        question: "أي من التالي يمثل القانون الأول لنيوتن؟",
+        answers: ["F = ma", "الجسم الساكن يبقى ساكناً", "لكل فعل رد فعل"],
+        correct: 1,
+        stageId: 2,
+        difficulty: 2,
+        points: 200,
+        hint: "قانون القصور الذاتي"
+    },
+    {
+        question: "ما هي سرعة الضوء في الفراغ؟",
+        answers: ["3 × 10⁸ m/s", "3 × 10⁶ m/s", "3 × 10¹⁰ m/s"],
+        correct: 0,
+        stageId: 2,
+        difficulty: 2,
+        points: 200,
+        hint: "300,000 كم/ثانية"
+    },
+    {
+        question: "ما هي وحدة قياس الشحنة الكهربائية؟",
+        answers: ["أمبير", "فولت", "كولوم"],
+        correct: 2,
+        stageId: 2,
+        difficulty: 2,
+        points: 200,
+        hint: "سميت على اسم عالم فرنسي"
+    },
+    {
+        question: "ما هو مبدأ باسكال؟",
+        answers: ["الضغط ينتقل بالتساوي", "الغازات تتمدد", "السوائل لا تضغط"],
+        correct: 0,
+        stageId: 3,
+        difficulty: 3,
+        points: 300,
+        hint: "يتعلق بالضغط في السوائل"
+    },
+    {
+        question: "كم عدد درجات حرية الجزيء في الغاز المثالي؟",
+        answers: ["3", "5", "6"],
+        correct: 0,
+        stageId: 3,
+        difficulty: 3,
+        points: 300,
+        hint: "ثلاثة أبعاد مكانية"
+    },
+    {
+        question: "ما هو التردد الطبيعي للبندول البسيط؟",
+        answers: ["1/2π √(g/L)", "2π √(L/g)", "√(g/L)"],
+        correct: 0,
+        stageId: 4,
+        difficulty: 4,
+        points: 500,
+        hint: "يعتمد على الجذر التربيعي لـ g/L"
+    },
+    {
+        question: "ما هي معادلة موجة شرودنغر الزمنية؟",
+        answers: ["iℏ ∂Ψ/∂t = ĤΨ", "E = ℏω", "p = ℏk"],
+        correct: 0,
+        stageId: 4,
+        difficulty: 4,
+        points: 500,
+        hint: "تتضمن مشتقة زمنية للدالة الموجية"
+    },
+    {
+        question: "ما هو ثابت التجاذب الكوني G؟",
+        answers: ["6.674 × 10⁻¹¹ N·m²/kg²", "9.8 m/s²", "3 × 10⁸ m/s"],
+        correct: 0,
+        stageId: 3,
+        difficulty: 3,
+        points: 300,
+        hint: "رقم صغير جداً مع 10^-11"
+    }
+];
+
+// Load from localStorage or use defaults (المتغيرات معرفة أعلاه)
+async function loadQuestionsFromStorage() {
+    const serverQuestions = await fetchFromServer('questions');
+    if (serverQuestions && Array.isArray(serverQuestions) && serverQuestions.length > 0) {
+        localStorage.setItem('physicsQuestions', JSON.stringify(serverQuestions));
+        return serverQuestions;
+    }
+    try {
+        const stored = JSON.parse(localStorage.getItem('physicsQuestions'));
+        if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch (err) {
+        console.warn('Failed to load saved questions:', err);
+    }
+    return [...defaultQuestions];
+}
+
+async function saveQuestionsToServer() {
+    const saved = await saveToServer('questions', questions);
+    localStorage.setItem('physicsQuestions', JSON.stringify(questions));
+    return saved;
+}
+
+function loadStatsFromStorage() {
+    try {
+        const stored = JSON.parse(localStorage.getItem('gameStats'));
+        if (stored && typeof stored === 'object') {
+            return stored;
+        }
+    } catch (err) {
+        console.warn('Failed to load saved stats:', err);
+    }
+    return { plays: 0, highScore: 0, totalScore: 0 };
+}
+
+function getDefaultStages() {
+    return [
+        {
+            id: 1,
+            title: 'التدريب الأول',
+            description: 'أسئلة سهلة لتبدأ رحلتك.',
+            difficultyLevels: [1],
+            questionsCount: 5,
+            passPercent: 60,
+            unlocked: true
+        },
+        {
+            id: 2,
+            title: 'التحدي المتوسط',
+            description: 'أسئلة متوسطة لتثبت معلوماتك.',
+            difficultyLevels: [2],
+            questionsCount: 5,
+            passPercent: 60,
+            unlocked: false
+        },
+        {
+            id: 3,
+            title: 'المستوى المتقدم',
+            description: 'أسئلة صعبة تتطلب تركيزاً.',
+            difficultyLevels: [3],
+            questionsCount: 5,
+            passPercent: 60,
+            unlocked: false
+        },
+        {
+            id: 4,
+            title: 'خبير الفيزياء',
+            description: 'أصعب الأسئلة، جاهز؟',
+            difficultyLevels: [4],
+            questionsCount: 5,
+            passPercent: 70,
+            unlocked: false
+        }
+    ];
+}
+
+async function loadStageSettingsFromStorage() {
+    const serverStages = await fetchFromServer('stages');
+    if (serverStages && Array.isArray(serverStages) && serverStages.length > 0) {
+        localStorage.setItem('physicsStageSettings', JSON.stringify(serverStages));
+        return serverStages;
+    }
+    try {
+        const stored = JSON.parse(localStorage.getItem('physicsStageSettings'));
+        if (Array.isArray(stored) && stored.length > 0) return stored;
+    } catch (err) {
+        console.warn('Failed to load stage settings:', err);
+    }
+    return getDefaultStages();
+}
+
+async function saveStageSettingsToStorage() {
+    const saved = await saveToServer('stages', stages);
+    localStorage.setItem('physicsStageSettings', JSON.stringify(stages));
+    return saved;
+}
+
+let playerName = '';
+let adminDisplayName = '';
+let adminKey = 'admin';
+let currentAudioName = '';
+let currentAudioData = null;
+let currentAudioVolume = 0.8;
+let selectedStageId = 1;
+let selectedStage = null;
+
+// Initialize with defaults, will sync with server in initGame()
+questions = [...defaultQuestions];
+gameStats = loadStatsFromStorage();
+stages = getDefaultStages();
+selectedStage = stages.find(stage => stage.id === selectedStageId) || stages[0];
+
+function loadGameNameFromStorage() {
+    const saved = localStorage.getItem('gameTitle');
+    const titleEl = document.getElementById('gameTitle');
+    const input = document.getElementById('gameNameInput');
+    if (saved) {
+        if (titleEl) titleEl.textContent = saved;
+        document.title = saved.replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, '').trim() || 'مليون فيزياء';
+    }
+    if (input) input.value = saved || '';
+}
+
+function previewGameName(val) {
+    const titleEl = document.getElementById('gameTitle');
+    if (titleEl) titleEl.textContent = val || '⚡مع الاستاذ محمد البسام مليون فيزياء ⚡';
+}
+
+function saveGameName() {
+    const val = document.getElementById('gameNameInput').value.trim();
+    if (!val) { alert('يرجى كتابة اسم اللعبة.'); return; }
+    localStorage.setItem('gameTitle', val);
+    const titleEl = document.getElementById('gameTitle');
+    if (titleEl) titleEl.textContent = val;
+    document.title = val.replace(/[^\u0600-\u06FFa-zA-Z0-9 ]/g, '').trim() || '⚡مع الاستاذ محمد البسام مليون فيزياء ⚡';
+    alert('✅ تم حفظ اسم اللعبة.');
+}
+
+async function resetGameName() {
+    const def = '⚡مع الاستاذ محمد البسام مليون فيزياء ⚡';
+    await saveToServer('gamename', { name: def });
+    localStorage.removeItem('gameTitle');
+    const titleEl = document.getElementById('gameTitle');
+    if (titleEl) titleEl.textContent = def;
+    const input = document.getElementById('gameNameInput');
+    if (input) input.value = '';
+    document.title = '⚡مع الاستاذ محمد البسام مليون فيزياء ⚡';
+    alert('✅ تم إعادة الاسم الافتراضي.');
+}
+
+function loadNamesFromStorage() {
+    playerName = localStorage.getItem('playerName') || '';
+    adminDisplayName = localStorage.getItem('adminDisplayName') || '';
+    adminKey = localStorage.getItem('adminKey') || 'admin';
+    const playerInput = document.getElementById('playerName');
+    const adminDisplayInput = document.getElementById('adminDisplayName');
+    if (playerInput) playerInput.value = playerName;
+    if (adminDisplayInput) adminDisplayInput.value = adminDisplayName;
+    updatePlayerDisplay();
+    updateAdminDisplay();
+    populateStageSelectForQuestions();
+    updateReturnButtons();
+    loadLogoFromStorage();
+    loadAudioVolumeFromStorage();
+    loadAudioFromStorage();
+    loadGameNameFromStorage();
+}
+
+function updateReturnButtons() {
+    const label = '🔙 العودة';
+    const elements = ['backToMainBtn', 'stageSelectionBackBtn', 'gameOverBackBtn'];
+    elements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = label;
+    });
+}
+
+function savePlayerName() {
+    const name = document.getElementById('playerName').value.trim();
+    playerName = name;
+    localStorage.setItem('playerName', playerName);
+    updatePlayerDisplay();
+}
+
+function saveAdminSettings() {
+    const displayName = document.getElementById('adminDisplayName').value.trim();
+    const keyInput = document.getElementById('adminKey').value.trim();
+    if (displayName) {
+        adminDisplayName = displayName;
+        localStorage.setItem('adminDisplayName', adminDisplayName);
+    }
+    if (keyInput) {
+        adminKey = keyInput;
+        localStorage.setItem('adminKey', adminKey);
+    }
+    if (adminDisplayName) updateAdminDisplay();
+    document.getElementById('adminKey').value = '';
+    alert('✅ تم تحديث بيانات المشرف');
+}
+
+async function resetStageProgress() {
+    if (confirm('هل أنت متأكد من إعادة تعيين حالة المراحل؟ سيؤدي هذا إلى قفل كل المراحل ما عدا المرحلة الأولى.')) {
+        stages = getDefaultStages();
+        await saveStageSettingsToStorage();
+        renderStageSelection();
+        renderStagesList();
+        alert('✅ تم إعادة تعيين المراحل إلى الحالة الافتراضية');
+    }
+}
+
+function addNewStage() {
+    const stageName = document.getElementById('newStageName').value.trim();
+    const stageDescription = document.getElementById('newStageDescription').value.trim();
+    const questionsCount = parseInt(document.getElementById('newStageQuestionCount').value, 10);
+    const passPercent = parseInt(document.getElementById('newStagePassPercent').value, 10);
+
+    if (!stageName || !stageDescription || !Number.isFinite(questionsCount) || !Number.isFinite(passPercent)) {
+        alert('يرجى ملء جميع بيانات المرحلة الجديدة بشكل صحيح.');
+        return;
+    }
+
+    // Validate question count
+    if (questionsCount < 1) {
+        alert('عدد الأسئلة يجب أن يكون 1 على الأقل.');
+        return;
+    }
+
+    // Validate pass percent
+    if (passPercent < 0 || passPercent > 100) {
+        alert('نسبة النجاح يجب أن تكون بين 0 و 100.');
+        return;
+    }
+
+    // Get selected difficulty levels
+    const difficultyLevels = [1, 2, 3, 4];
+
+    // Create new stage with next ID
+    const maxId = Math.max(...stages.map(s => s.id), 0);
+    const isUnlocked = document.getElementById('newStageUnlocked').value === 'true';
+    const newStage = {
+        id: maxId + 1,
+        title: stageName,
+        description: stageDescription,
+        difficultyLevels: difficultyLevels,
+        questionsCount: Math.max(1, questionsCount),
+        passPercent: Math.min(100, Math.max(0, passPercent)),
+        unlocked: isUnlocked
+    };
+
+    stages.push(newStage);
+    saveStageSettingsToStorage();
+    
+    // Update all dropdowns and displays
+    populateStageSelectForQuestions();
+    renderStageSelection();
+    renderStagesList();
+
+    // Clear the form
+    document.getElementById('newStageName').value = '';
+    document.getElementById('newStageDescription').value = '';
+    document.getElementById('newStageQuestionCount').value = '5';
+    document.getElementById('newStagePassPercent').value = '60';
+    document.getElementById('newStageUnlocked').value = 'false';
+
+    alert(`✅ تم إضافة المرحلة "${stageName}" بنجاح! رقم المرحلة: ${newStage.id}`);
+}
+
+function getDefaultLogoDataUrl() {
+    return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0%25' stop-color='%23ffd700'/%3E%3Cstop offset='100%25' stop-color='%23338cff'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='60' cy='60' r='56' fill='url(%23g)' /%3E%3Cpath d='M60 28l7.4 24.1h25.3l-20.5 14.9 7.8 24.3L60 76.4 40 91.3l7.8-24.3L27.3 52.1h25.3z' fill='%23fff' opacity='0.8'/%3E%3C/svg%3E";
+}
+
+async function loadLogoFromStorage() {
+    const logoImage = document.getElementById('topLogoImage');
+    const logoWrapper = document.querySelector('.top-logo-wrapper');
+    if (logoWrapper) logoWrapper.style.display = 'flex';
+    const serverLogo = await fetchFromServer('logo');
+    if (serverLogo && serverLogo.logo) {
+        if (logoImage) logoImage.src = serverLogo.logo;
+        localStorage.setItem('gameLogoSrc', serverLogo.logo);
+        return;
+    }
+    const saved = localStorage.getItem('gameLogoSrc');
+    if (saved && logoImage) logoImage.src = saved;
+}
+
+async function saveLogoSettings() {
+    const fileInput = document.getElementById('logoUploadFile');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('يرجى اختيار صورة من جهازك أولاً.');
+        return;
+    }
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const dataUrl = e.target.result;
+        const logoImage = document.getElementById('topLogoImage');
+        if (logoImage) logoImage.src = dataUrl;
+        const saved = await saveToServer('logo', { logo: dataUrl });
+        localStorage.setItem('gameLogoSrc', dataUrl);
+        if (saved) {
+            alert('✅ تم حفظ الشعار لجميع الزوار!');
+        } else {
+            alert('✅ تم حفظ الشعار محلياً (السيرفر غير متاح).');
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function injectLogoIntoHTML(dataUrl) { /* unused */ }
+function uploadLogoImage(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const logoImage = document.getElementById('topLogoImage');
+        const logoWrapper = document.querySelector('.top-logo-wrapper');
+        if (logoImage) logoImage.src = dataUrl;
+        if (logoWrapper) logoWrapper.style.display = 'flex';
+        localStorage.setItem('gameLogoSrc', dataUrl);
+    };
+    reader.readAsDataURL(file);
+}
+
+function resetLogoImage() {
+    const logoWrapper = document.querySelector('.top-logo-wrapper');
+    localStorage.removeItem('gameLogoSrc');
+    document.getElementById('logoUploadFile').value = '';
+    if (logoWrapper) logoWrapper.style.display = 'none';
+    alert('✅ تم إزالة الشعار.');
+}
+
+function prepAudioUpload(input) {
+    const file = input.files[0];
+    const status = document.getElementById('audioUploadStatus');
+    if (file && status) {
+        currentAudioName = file.name;
+        status.textContent = `جاهز للحفظ: ${file.name}`;
+    } else if (status) {
+        status.textContent = 'لم يتم اختيار أي ملف بعد.';
+    }
+}
+
+async function saveAudioSettings() {
+    const fileInput = document.getElementById('audioUploadFile');
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            currentAudioData = e.target.result;
+            currentAudioName = file.name;
+            await saveToServer('audio', { audio: currentAudioData, name: currentAudioName });
+            localStorage.setItem('gameAudioSrc', currentAudioData);
+            localStorage.setItem('gameAudioName', currentAudioName);
+            loadAudioFromStorage();
+            const status = document.getElementById('audioUploadStatus');
+            if (status) status.textContent = `تم حفظ الصوت: ${currentAudioName}`;
+            alert('✅ تم حفظ الصوت بنجاح');
+        };
+        reader.readAsDataURL(file);
+        return;
+    }
+    alert('يرجى اختيار ملف صوتي من جهازك أولاً.');
+}
+
+function setAudioVolume(value) {
+    currentAudioVolume = Number(value) / 100;
+    const audioPlayer = document.getElementById('gameAudioPlayer');
+    const volumeLabel = document.getElementById('audioVolumeLabel');
+    if (audioPlayer) {
+        audioPlayer.volume = currentAudioVolume;
+    }
+    if (volumeLabel) {
+        volumeLabel.textContent = `الصوت: ${Math.round(currentAudioVolume * 100)}%`;
+    }
+    localStorage.setItem('gameAudioVolume', currentAudioVolume.toString());
+}
+
+function updateAudioVolumeLabel(value) {
+    const volumeLabel = document.getElementById('audioVolumeLabel');
+    if (volumeLabel) {
+        volumeLabel.textContent = `الصوت: ${value}%`;
+    }
+}
+
+function loadAudioVolumeFromStorage() {
+    const savedVolume = parseFloat(localStorage.getItem('gameAudioVolume'));
+    currentAudioVolume = Number.isFinite(savedVolume) ? savedVolume : 0.8;
+    const slider = document.getElementById('audioVolumeSlider');
+    if (slider) slider.value = Math.round(currentAudioVolume * 100);
+    updateAudioVolumeLabel(Math.round(currentAudioVolume * 100));
+}
+
+function loadAudioFromStorage() {
+    const savedAudio = localStorage.getItem('gameAudioSrc');
+    const savedName = localStorage.getItem('gameAudioName') || '';
+    const audioPlayer = document.getElementById('gameAudioPlayer');
+    const infoLabel = document.getElementById('audioInfoLabel');
+    if (audioPlayer) {
+        audioPlayer.loop = true;
+        audioPlayer.autoplay = true;
+        audioPlayer.muted = false;
+        audioPlayer.volume = currentAudioVolume;
+        if (savedAudio) {
+            audioPlayer.src = savedAudio;
+            audioPlayer.classList.remove('hidden');
+            audioPlayer.load();
+            audioPlayer.play().catch(() => {});
+        } else {
+            audioPlayer.pause();
+            audioPlayer.removeAttribute('src');
+            audioPlayer.classList.add('hidden');
+        }
+    }
+    if (infoLabel) {
+        infoLabel.textContent = savedAudio ? `الصوت الحالي: ${savedName || 'ملف صوتي'}` : 'لا يوجد ملف صوتي محمل حالياً.';
+    }
+}
+
+function tryPlayBackgroundAudio() {
+    const audioPlayer = document.getElementById('gameAudioPlayer');
+    if (!audioPlayer || !audioPlayer.src) return;
+    if (audioPlayer.paused) {
+        audioPlayer.play().catch(() => {});
+    }
+}
+
+document.addEventListener('click', tryPlayBackgroundAudio);
+document.addEventListener('keydown', tryPlayBackgroundAudio);
+
+function resetAudioFile() {
+    localStorage.removeItem('gameAudioSrc');
+    localStorage.removeItem('gameAudioName');
+    const fileInput = document.getElementById('audioUploadFile');
+    const status = document.getElementById('audioUploadStatus');
+    const audioPlayer = document.getElementById('gameAudioPlayer');
+    const infoLabel = document.getElementById('audioInfoLabel');
+    if (fileInput) fileInput.value = '';
+    if (status) status.textContent = 'لم يتم اختيار أي ملف بعد.';
+    if (audioPlayer) {
+        audioPlayer.pause();
+        audioPlayer.removeAttribute('src');
+        audioPlayer.classList.add('hidden');
+    }
+    if (infoLabel) infoLabel.textContent = 'لا يوجد ملف صوتي محمل حالياً.';
+    alert('✅ تم إعادة الصوت إلى الافتراضي');
+}
+
+function updatePlayerDisplay() {
+    const display = document.getElementById('playerDisplay');
+    if (display) display.textContent = playerName || 'غير محدد';
+}
+
+function updateAdminDisplay() {
+    const display = document.getElementById('adminDisplay');
+    const header = document.getElementById('adminNameHeader');
+    if (display) display.textContent = adminDisplayName || 'غير محدد';
+    if (header) header.textContent = adminDisplayName ? `- ${adminDisplayName}` : '';
+}
+
+// ==================== GAME FUNCTIONS ====================
+function shuffleArray(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+async function openStageSelection() {
+    const nameInput = document.getElementById('playerName');
+    const nameValue = nameInput ? nameInput.value.trim() : '';
+    if (!nameValue) {
+        alert('يرجى كتابة اسمك قبل اختيار المرحلة!');
+        if (nameInput) nameInput.focus();
+        return;
+    }
+    playerName = nameValue;
+    localStorage.setItem('playerName', playerName);
+    updatePlayerDisplay();
+
+    // أعد تحميل المراحل من السيرفر لضمان ظهور أي تعديلات
+    stages = await loadStageSettingsFromStorage();
+
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    document.getElementById('stageSelectionScreen').classList.remove('hidden');
+    document.getElementById('gameScreen').classList.add('hidden');
+    document.getElementById('gameTitle').style.display = 'none';
+
+    // أخفِ زر الإعدادات
+    const settingsBtn = document.querySelector('.settings-btn');
+    if (settingsBtn) settingsBtn.style.display = 'none';
+
+    renderStageSelection();
+    updateReturnButtons();
+    updateLogoPosition();
+}
+
+function showStartScreen() {
+    document.getElementById('startScreen').classList.remove('hidden');
+    document.getElementById('stageSelectionScreen').classList.add('hidden');
+    document.getElementById('gameScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    document.getElementById('gameTitle').style.display = '';
+    const noQMsg = document.getElementById('noQuestionsMsg');
+    if (noQMsg) noQMsg.style.display = 'none';
+    const settingsBtn = document.querySelector('.settings-btn');
+    if (settingsBtn) settingsBtn.style.display = '';
+    updateLogoPosition();
+}
+
+function updateLogoPosition() {
+    const logoWrapper = document.querySelector('.top-logo-wrapper');
+    if (!logoWrapper) return;
+    const onStart = !document.getElementById('startScreen').classList.contains('hidden');
+    if (onStart) {
+        logoWrapper.classList.add('centered');
+    } else {
+        logoWrapper.classList.remove('centered');
+    }
+}
+
+function renderStageSelection() {
+    const stageCards = document.getElementById('stageCards');
+    if (!stageCards) return;
+    stageCards.innerHTML = '';
+
+    stages.forEach(stage => {
+        const isCurrent = stage.id === selectedStageId;
+        const card = document.createElement('div');
+        card.className = 'stage-card ' + (stage.unlocked ? 'unlocked' : 'locked') + (isCurrent ? ' current' : '');
+
+        const statusLabel = isCurrent ? 'المرحلة الحالية' : stage.unlocked ? 'مفتوحة' : 'مقفلة';
+        const actionText = stage.unlocked ? 'ابدأ المرحلة' : 'مقفلة';
+
+        card.innerHTML = `
+            <div class="stage-node">
+                <div class="stage-circle">${stage.id}</div>
+                <div class="stage-badge">${statusLabel}</div>
+            </div>
+            <div>
+                <h3>${stage.title}</h3>
+                <p>${stage.description}</p>
+                <div class="stage-detail"><span>أسئلة: ${stage.questionsCount}</span><span>نجاح: ${stage.passPercent}%</span></div>
+            </div>
+            <button ${stage.unlocked ? '' : 'disabled'} onclick="startGame(${stage.id})">${actionText}</button>
+        `;
+
+        stageCards.appendChild(card);
+    });
+}
+
+function startGame(stageId) {
+    if (stageId) {
+        const stage = stages.find(s => s.id === stageId);
+        if (!stage) return;
+        if (!stage.unlocked) {
+            alert('هذه المرحلة مقفلة. أكمل المرحلة السابقة أولاً.');
+            return;
+        }
+        selectedStageId = stageId;
+        selectedStage = stage;
+    }
+
+    if (!selectedStage) {
+        selectedStage = stages.find(stage => stage.id === selectedStageId) || stages[0];
+    }
+
+    const nameInput = document.getElementById('playerName');
+    const nameValue = nameInput ? nameInput.value.trim() : '';
+    if (!nameValue) {
+        alert('يرجى كتابة اسمك قبل البدء!');
+        if (nameInput) nameInput.focus();
+        showStartScreen();
+        return;
+    }
+
+    playerName = nameValue;
+    localStorage.setItem('playerName', playerName);
+    updatePlayerDisplay();
+    updateReturnButtons();
+
+    const stageQuestions = questions.filter(q => q.stageId === selectedStage.id);
+    shuffledQuestions = shuffleArray(stageQuestions).slice(0, Math.min(selectedStage.questionsCount, stageQuestions.length));
+    if (shuffledQuestions.length === 0) {
+        // أظهر الرسالة داخل شاشة اختيار المرحلة
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('stageSelectionScreen').classList.remove('hidden');
+        document.getElementById('gameScreen').classList.add('hidden');
+        document.getElementById('gameOverScreen').classList.add('hidden');
+        renderStageSelection();
+        const msg = document.getElementById('noQuestionsMsg');
+        const txt = document.getElementById('noQuestionsText');
+        if (msg) {
+            txt.textContent = `لا توجد أسئلة للمرحلة "${selectedStage.title}". يرجى إضافة أسئلة من لوحة التحكم.`;
+            msg.style.display = 'block';
+            msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+    }
+    // أخفِ رسالة الخطأ إن كانت ظاهرة
+    const noQMsg = document.getElementById('noQuestionsMsg');
+    if (noQMsg) noQMsg.style.display = 'none';
+
+    currentQuestion = 0;
+    correctCount = 0;
+    gameActive = true;
+
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('stageSelectionScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+    document.getElementById('gameScreen').classList.remove('hidden');
+    applySelectedStageToDisplay();
+    showQuestion();
+    updateLogoPosition();
+}
+
+function applySelectedStageToDisplay() {
+    const stageName = document.getElementById('stageName');
+    if (stageName) {
+        stageName.textContent = selectedStage ? selectedStage.title : 'غير محدد';
+    }
+}
+
+function showQuestion() {
+    const q = shuffledQuestions[currentQuestion];
+    document.getElementById('currentQ').textContent = currentQuestion + 1;
+    document.getElementById('totalQ').textContent = shuffledQuestions.length;
+    document.getElementById('correctCount').textContent = correctCount;
+    document.getElementById('level').textContent = q.difficulty;
+    document.getElementById('levelBadge').textContent = `المستوى ${q.difficulty}`;
+    document.getElementById('questionText').textContent = q.question;
+    document.getElementById('hintText').textContent = '';
+    document.getElementById('hintText').classList.remove('show');
+
+    const progress = ((currentQuestion) / shuffledQuestions.length) * 100;
+    document.getElementById('progressBar').style.width = progress + '%';
+
+    const grid = document.getElementById('answersGrid');
+    grid.innerHTML = '';
+
+    q.answers.forEach((ans, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'answer-btn';
+        btn.textContent = ans;
+        btn.onclick = () => checkAnswer(idx, btn);
+        grid.appendChild(btn);
+    });
+}
+
+function checkAnswer(selectedIdx, btnElement) {
+    if (!gameActive) return;
+    gameActive = false;
+
+    const q = shuffledQuestions[currentQuestion];
+    const buttons = document.querySelectorAll('.answer-btn');
+
+    if (selectedIdx === q.correct) {
+        // Correct!
+        btnElement.classList.add('correct');
+        correctCount += 1;
+        document.getElementById('correctCount').textContent = correctCount;
+        createConfetti();
+        createExplosionParticles(btnElement);
+        playSound('correct');
+
+        setTimeout(() => {
+            currentQuestion++;
+            if (currentQuestion >= shuffledQuestions.length) {
+                endGame(true);
+            } else {
+                gameActive = true;
+                showQuestion();
+            }
+        }, 1500);
+    } else {
+        // Wrong
+        btnElement.classList.add('wrong');
+        buttons[q.correct].classList.add('correct');
+        createShakeEffect();
+        playSound('wrong');
+
+        setTimeout(() => {
+            endGame(false);
+        }, 2000);
+    }
+}
+
+function getAudioContext() {
+    if (!window.audioCtx) {
+        window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = window.audioCtx;
+    if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+    }
+    return ctx;
+}
+
+function playTone(frequency, duration = 0.2, type = 'sine', startDelay = 0, maxGain = 0.08) {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+
+    const start = ctx.currentTime + startDelay;
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(maxGain, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+    oscillator.start(start);
+    oscillator.stop(start + duration + 0.05);
+}
+
+function playSound(type) {
+    if (type === 'correct') {
+        playTone(880, 0.12, 'triangle', 0, 0.09);
+        playTone(1046.5, 0.14, 'sine', 0.08, 0.07);
+        playTone(1318.5, 0.16, 'sine', 0.16, 0.05);
+    } else {
+        playTone(330, 0.14, 'sine', 0, 0.06);
+        playTone(262, 0.12, 'triangle', 0.08, 0.04);
+    }
+}
+
+function endGame(won) {
+    gameActive = false;
+    document.getElementById('gameScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+    updateLogoPosition();
+
+    const finalScore = document.getElementById('finalScore');
+    const endTitle = document.getElementById('endTitle');
+    const endMessage = document.getElementById('endMessage');
+
+    finalScore.textContent = correctCount;
+
+    // Update stats
+    gameStats.plays++;
+    gameStats.totalScore += correctCount;
+    if (correctCount > gameStats.highScore) gameStats.highScore = correctCount;
+    localStorage.setItem('gameStats', JSON.stringify(gameStats));
+
+    const passThreshold = selectedStage ? Math.ceil(shuffledQuestions.length * selectedStage.passPercent / 100) : 0;
+    const nextStage = stages.find(s => s.id === (selectedStage ? selectedStage.id + 1 : 0));
+    const nextStageBtn = document.getElementById('nextStageBtn');
+    if (nextStageBtn) nextStageBtn.classList.add('hidden');
+
+    // ===== الطالب أكمل جميع الأسئلة =====
+    if (won) {
+        // احفظ تقدم المرحلة والتصنيف
+        saveStageProgress(selectedStage.id, correctCount, shuffledQuestions.length);
+        savePlayerRecord(playerName, selectedStage.id, correctCount, shuffledQuestions.length, true);
+
+        const passed = correctCount >= passThreshold;
+
+        if (passed) {
+            endTitle.textContent = '🏆 مبروك! أكملت المرحلة!';
+            endMessage.textContent = `أجبت على ${correctCount} من ${shuffledQuestions.length} سؤال بشكل صحيح.`;
+            createMassiveConfetti();
+
+            // افتح المرحلة التالية
+            if (nextStage && !nextStage.unlocked) {
+                nextStage.unlocked = true;
+                saveStageSettingsToStorage();
+                renderStageSelection();
+                endMessage.textContent += ` 🔓 فتحت المرحلة التالية!`;
+            }
+
+            if (nextStage) {
+                if (nextStageBtn) nextStageBtn.classList.remove('hidden');
+            } else {
+                endMessage.textContent += ' 🎉 أكملت جميع المراحل!';
+            }
+        } else {
+            // أكمل الأسئلة لكن لم يحقق نسبة النجاح
+            endTitle.textContent = '📝 انتهت الأسئلة';
+            endMessage.textContent = `أجبت على ${correctCount} من ${shuffledQuestions.length}. تحتاج ${passThreshold} إجابة صحيحة للنجاح. حاول مرة أخرى!`;
+        }
+
+    // ===== الطالب أخطأ في سؤال → يعيد من البداية =====
+    } else {
+        endTitle.textContent = '❌ إجابة خاطئة!';
+        endMessage.textContent = `وصلت للسؤال ${currentQuestion + 1} من ${shuffledQuestions.length}. ستبدأ المرحلة من البداية.`;
+    }
+}
+
+function saveStageProgress(stageId, correct, total) {
+    const progress = JSON.parse(localStorage.getItem('stageProgress') || '{}');
+    if (!progress[stageId] || correct > (progress[stageId].correct || 0)) {
+        progress[stageId] = { correct, total, completedAt: Date.now() };
+    }
+    localStorage.setItem('stageProgress', JSON.stringify(progress));
+}
+
+function playNextStage() {
+    const nextStage = stages.find(s => s.id === (selectedStage ? selectedStage.id + 1 : 0));
+    if (!nextStage) {
+        alert('لا توجد مرحلة لاحقة.');
+        return;
+    }
+    if (!nextStage.unlocked) {
+        alert('المرحلة التالية غير متاحة بعد. اكمل المرحلة الحالية أولاً.');
+        return;
+    }
+    startGame(nextStage.id);
+}
+
+// ==================== VISUAL EFFECTS ====================
+function createConfetti() {
+    const colors = ['#ffd700', '#00e5ff', '#ff1744', '#00e676', '#ff9100', '#e040fb'];
+    for (let i = 0; i < 50; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.width = Math.random() * 10 + 5 + 'px';
+        confetti.style.height = Math.random() * 10 + 5 + 'px';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+        document.body.appendChild(confetti);
+
+        const duration = Math.random() * 2 + 1;
+        confetti.animate([
+            { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+            { transform: `translateY(${window.innerHeight}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+        ], {
+            duration: duration * 1000,
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        }).onfinish = () => confetti.remove();
+    }
+}
+
+function createMassiveConfetti() {
+    for (let i = 0; i < 3; i++) {
+        setTimeout(createConfetti, i * 300);
+    }
+}
+
+function createExplosionParticles(element) {
+    const isMobile = window.matchMedia('(max-width: 700px)').matches;
+    if (isMobile) return; // avoid heavy DOM particles on small screens
+
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = centerX + 'px';
+        particle.style.top = centerY + 'px';
+        particle.style.width = '8px';
+        particle.style.height = '8px';
+        particle.style.background = '#ffd700';
+        particle.style.boxShadow = '0 0 10px #ffd700';
+        document.body.appendChild(particle);
+
+        const angle = (Math.PI * 2 * i) / 20;
+        const velocity = 100 + Math.random() * 100;
+
+        particle.animate([
+            { transform: 'translate(0,0) scale(1)', opacity: 1 },
+            { transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity}px) scale(0)`, opacity: 0 }
+        ], {
+            duration: 800,
+            easing: 'ease-out'
+        }).onfinish = () => particle.remove();
+    }
+}
+
+function createShakeEffect() {
+    document.body.style.animation = 'shake 0.5s ease';
+    setTimeout(() => {
+        document.body.style.animation = '';
+    }, 500);
+}
+
+// ==================== ADMIN PANEL ====================
+let adminClickCount = 0;
+let adminClickTimer = null;
+
+async function openAdmin() {
+    const key = prompt('ادخل كلمة دخول لوحة التحكم:');
+    if (key === null) return;
+    if (key.trim() === adminKey) {
+        document.getElementById('adminPanel').classList.add('active');
+        // أعد تحميل المراحل والأسئلة من السيرفر
+        stages = await loadStageSettingsFromStorage();
+        questions = await loadQuestionsFromStorage();
+        populateStageSelectForQuestions();
+        updateAdminStats();
+        renderQuestionsList();
+        renderStagesList();
+        // تحميل الاسم الحالي
+        await loadGameNameFromStorage();
+    } else {
+        alert('❌ كلمة الدخول غير صحيحة.');
+    }
+}
+
+function populateStageSelectForQuestions() {
+    const stageSelect = document.getElementById('questionStageSelect');
+    if (!stageSelect || !stages || stages.length === 0) return;
+    
+    stageSelect.innerHTML = '';
+    stages.forEach((stage, idx) => {
+        const option = document.createElement('option');
+        option.value = stage.id;
+        option.textContent = `${idx + 1}. ${stage.title}`;
+        stageSelect.appendChild(option);
+    });
+    
+    if (stageSelect.options.length > 0) {
+        stageSelect.selectedIndex = 0;
+    }
+}
+
+function renderStagesList() {
+    const list = document.getElementById('stagesList');
+    if (!list) return;
+    list.innerHTML = '';
+
+    stages.forEach((stage, idx) => {
+        const item = document.createElement('div');
+        item.className = 'question-item';
+        item.innerHTML = `
+            <div class="q-text">
+                <strong>${idx + 1}.</strong> ${stage.title}
+                <span style="color: #a0a0c0; font-size: 0.85rem; margin-right: 8px;">${stage.description.substring(0, 40)}${stage.description.length > 40 ? '...' : ''}</span>
+                <span style="color: #ffd700; margin-right: 8px;">أسئلة: ${stage.questionsCount} | نجاح: ${stage.passPercent}%</span>
+                <span style="color: ${stage.unlocked ? '#00e676' : '#ff5252'}; font-size: 0.85rem;">${stage.unlocked ? '🔓 مفتوحة' : '🔒 مقفلة'}</span>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="add-btn" onclick="toggleStageUnlock(${stage.id})"
+                    style="padding:8px 14px; font-size:0.9rem; background: ${stage.unlocked ? 'linear-gradient(45deg,#ff5252,#ff1744)' : 'linear-gradient(45deg,#00c853,#00e676)'};">
+                    ${stage.unlocked ? '🔒 قفل' : '🔓 فتح'}
+                </button>
+                <button class="delete-btn" onclick="deleteStage(${stage.id})">🗑️ حذف</button>
+            </div>
+        `;
+        list.appendChild(item);
+    });
+
+    if (stages.length === 0) {
+        list.innerHTML = '<p style="color: #a0a0c0; text-align: center; padding: 20px;">لا توجد مراحل.</p>';
+    }
+}
+
+async function toggleStageUnlock(stageId) {
+    const stage = stages.find(s => s.id === stageId);
+    if (!stage) return;
+    stage.unlocked = !stage.unlocked;
+    await saveStageSettingsToStorage();
+    renderStagesList();
+    renderStageSelection();
+}
+
+function reorderStageIds() {
+    // أعد ترقيم المراحل من 1 بشكل متسلسل
+    stages.forEach((stage, idx) => {
+        const oldId = stage.id;
+        const newId = idx + 1;
+        if (oldId !== newId) {
+            // حدّث الأسئلة المرتبطة بهذه المرحلة
+            questions.forEach(q => {
+                if (q.stageId === oldId) q.stageId = newId;
+            });
+            stage.id = newId;
+        }
+    });
+    // احفظ التغييرات
+    localStorage.setItem('physicsQuestions', JSON.stringify(questions));
+    saveStageSettingsToStorage();
+}
+
+async function deleteStage(stageId) {
+    const stage = stages.find(s => s.id === stageId);
+    if (!stage) return;
+
+    if (stages.length <= 1) {
+        alert('⚠️ لا يمكن حذف المرحلة الأخيرة. يجب أن تبقى مرحلة واحدة على الأقل.');
+        return;
+    }
+
+    const linkedQuestions = questions.filter(q => q.stageId === stageId);
+    let confirmMsg = `هل أنت متأكد من حذف المرحلة "${stage.title}"؟`;
+    if (linkedQuestions.length > 0) {
+        confirmMsg += `\n⚠️ تنبيه: يوجد ${linkedQuestions.length} سؤال مرتبط بهذه المرحلة، لن يُحذف لكنه لن يظهر في اللعبة.`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    stages = stages.filter(s => s.id !== stageId);
+    reorderStageIds();
+    await saveStageSettingsToStorage();
+    populateStageSelectForQuestions();
+    renderStagesList();
+    renderStageSelection();
+    alert(`✅ تم حذف المرحلة "${stage.title}" بنجاح.`);
+}
+
+function closeAdmin() {
+    document.getElementById('adminPanel').classList.remove('active');
+}
+
+async function addQuestion() {
+    const question = document.getElementById('newQuestion').value.trim();
+    const ans1 = document.getElementById('ans1').value.trim();
+    const ans2 = document.getElementById('ans2').value.trim();
+    const ans3 = document.getElementById('ans3').value.trim();
+    const correctIndex = parseInt(document.getElementById('correctAnswerIndex').value, 10);
+    const stageId = parseInt(document.getElementById('questionStageSelect').value, 10);
+    const hint = document.getElementById('hint').value.trim();
+
+    if (!question || !ans1 || !ans2 || !ans3) {
+        alert('يرجى ملء جميع الحقول!');
+        return;
+    }
+
+    const selectedStage = stages.find(s => s.id === stageId);
+    if (!selectedStage) {
+        alert('يرجى اختيار مرحلة صحيحة!');
+        return;
+    }
+
+    const newQ = {
+        question: question,
+        answers: [ans1, ans2, ans3],
+        correct: correctIndex,
+        stageId: stageId,
+        difficulty: selectedStage.difficultyLevels[0] || 1,
+        points: 100,
+        hint: hint
+    };
+
+    questions.push(newQ);
+    await saveQuestionsToServer();
+
+    document.getElementById('newQuestion').value = '';
+    document.getElementById('ans1').value = '';
+    document.getElementById('ans2').value = '';
+    document.getElementById('ans3').value = '';
+    document.getElementById('correctAnswerIndex').value = '0';
+    document.getElementById('hint').value = '';
+
+    renderQuestionsList();
+    updateAdminStats();
+    alert(`✅ تم إضافة السؤال إلى المرحلة "${selectedStage.title}" بنجاح!`);
+}
+
+async function deleteQuestion(index) {
+    if (confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
+        questions.splice(index, 1);
+        await saveQuestionsToServer();
+        renderQuestionsList();
+        updateAdminStats();
+    }
+}
+
+function renderQuestionsList() {
+    const list = document.getElementById('questionsList');
+    list.innerHTML = '';
+
+    questions.forEach((q, idx) => {
+        const stage = stages.find(s => s.id === q.stageId);
+        const stageLabel = stage ? stage.title : `مرحلة ${q.stageId}`;
+        const item = document.createElement('div');
+        item.className = 'question-item';
+        item.innerHTML = `
+            <div class="q-text">
+                <strong>${idx + 1}.</strong> ${q.question.substring(0, 80)}${q.question.length > 80 ? '...' : ''}
+                <span style="color: #ffd700; margin-right: 10px;">(${stageLabel})</span>
+            </div>
+            <button class="delete-btn" onclick="deleteQuestion(${idx})">🗑️ حذف</button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function updateAdminStats() { /* removed */ }
+
+function exportQuestions() {
+    const dataStr = JSON.stringify(questions, null, 2);
+    const blob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'physics_questions.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function importQuestions(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            if (Array.isArray(imported)) {
+                questions = imported;
+                await saveQuestionsToServer();
+                renderQuestionsList();
+                alert(`✅ تم استيراد ${imported.length} سؤال بنجاح!`);
+            } else {
+                alert('❌ ملف غير صالح!');
+            }
+        } catch (err) {
+            alert('❌ خطأ في قراءة الملف!');
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+// Keyboard shortcut for admin (Ctrl+Shift+A)
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        openAdmin();
+    }
+    if (e.key === 'Escape') {
+        closeAdmin();
+    }
+});
+
+// Initialize admin stats on load
+updateAdminStats();
+loadNamesFromStorage();
+updateLogoPosition();
+
+// Initialize game data from server
+async function initGame() {
+    questions = await loadQuestionsFromStorage();
+    stages = await loadStageSettingsFromStorage();
+    selectedStage = stages.find(stage => stage.id === selectedStageId) || stages[0];
+    renderStageSelection();
+}
+initGame();
+
+// ==================== LEADERBOARD ====================
+let currentLbTab = 'perfect';
+
+async function savePlayerRecord(playerName, stageId, correct, total, completed) {
+    let records = await loadLeaderboardFromServer();
+    const existingIdx = records.findIndex(r => r.name === playerName);
+
+    if (existingIdx !== -1) {
+        const r = records[existingIdx];
+        r.totalCorrect  = (r.totalCorrect  || 0) + correct;
+        r.totalQuestions= (r.totalQuestions|| 0) + total;
+        r.stagesCompleted = (r.stagesCompleted || 0) + (completed ? 1 : 0);
+        r.perfectStages   = (r.perfectStages   || 0) + (correct === total ? 1 : 0);
+        r.lastStageTitle  = (stages.find(s => s.id === stageId) || {}).title || `مرحلة ${stageId}`;
+        r.lastDate = Date.now();
+    } else {
+        records.push({
+            name: playerName,
+            lastStageTitle: (stages.find(s => s.id === stageId) || {}).title || `مرحلة ${stageId}`,
+            totalCorrect:    correct,
+            totalQuestions:  total,
+            stagesCompleted: completed ? 1 : 0,
+            perfectStages:   correct === total ? 1 : 0,
+            lastDate: Date.now()
+        });
+    }
+    await saveLeaderboardToServer(records);
+}
+
+async function loadLeaderboardFromServer() {
+    const serverLb = await fetchFromServer('leaderboard');
+    if (serverLb && Array.isArray(serverLb)) {
+        localStorage.setItem('leaderboard', JSON.stringify(serverLb));
+        return serverLb;
+    }
+    try {
+        return JSON.parse(localStorage.getItem('leaderboard') || '[]');
+    } catch (e) { return []; }
+}
+
+async function saveLeaderboardToServer(records) {
+    const saved = await saveToServer('leaderboard', records);
+    if (saved) {
+        localStorage.setItem('leaderboard', JSON.stringify(records));
+    } else {
+        localStorage.setItem('leaderboard', JSON.stringify(records));
+    }
+}
+
+function openLeaderboard() {
+    document.getElementById('leaderboardModal').style.display = 'block';
+    currentLbTab = 'perfect';
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-perfect').classList.add('active');
+    renderLbTab('perfect');
+}
+
+function closeLeaderboard() {
+    document.getElementById('leaderboardModal').style.display = 'none';
+}
+
+function switchLbTab(tab) {
+    currentLbTab = tab;
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    renderLbTab(tab);
+}
+
+async function renderLbTab(tab) {
+    const content = document.getElementById('lb-content');
+    const records = await loadLeaderboardFromServer();
+    let filtered = [];
+    let emptyMsg = '';
+
+    if (tab === 'perfect') {
+        filtered = records.filter(r => (r.perfectStages || 0) > 0);
+        filtered.sort((a, b) => {
+            const ratioA = (a.totalCorrect||0) / Math.max(a.totalQuestions||1, 1);
+            const ratioB = (b.totalCorrect||0) / Math.max(b.totalQuestions||1, 1);
+            return ratioB - ratioA || (b.totalCorrect||0) - (a.totalCorrect||0);
+        });
+        emptyMsg = 'لا يوجد طالب أجاب على جميع الأسئلة بشكل صحيح بعد.';
+    } else if (tab === 'top') {
+        filtered = [...records];
+        filtered.sort((a, b) => {
+            const ratioA = (a.totalCorrect||0) / Math.max(a.totalQuestions||1, 1);
+            const ratioB = (b.totalCorrect||0) / Math.max(b.totalQuestions||1, 1);
+            return ratioB - ratioA || (b.totalCorrect||0) - (a.totalCorrect||0);
+        });
+        emptyMsg = 'لا توجد نتائج بعد.';
+    }
+
+    if (filtered.length === 0) {
+        content.innerHTML = `<p style="text-align:center; color:#a0a0c0; padding:30px;">${emptyMsg}</p>`;
+        return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+    content.innerHTML = filtered.map((r, i) => {
+        const correct   = r.totalCorrect   || 0;
+        const total     = r.totalQuestions || 0;
+        const pct       = total > 0 ? Math.round(correct / total * 100) : 0;
+        const stages_c  = r.stagesCompleted|| 0;
+        const perfect_c = r.perfectStages  || 0;
+        const sub = tab === 'perfect'  ? `${perfect_c} مرحلة كاملة` :
+                    tab === 'complete' ? `${stages_c} مرحلة مكتملة` :
+                    r.lastStageTitle || '';
+        return `
+        <div class="lb-row">
+            <div class="lb-rank">${medals[i] || (i + 1)}</div>
+            <div class="lb-name">${r.name}</div>
+        </div>`;
+    }).join('');
+}
+
+function clearLeaderboardPrompt() {
+    const key = prompt('أدخل كلمة دخول لوحة التحكم لمسح التصنيف:');
+    if (key === null) return;
+    if (key.trim() === adminKey) {
+        if (confirm('هل أنت متأكد من مسح جميع سجلات التصنيف؟')) {
+            localStorage.removeItem('leaderboard');
+            renderLbTab(currentLbTab);
+            alert('✅ تم مسح التصنيف.');
+        }
+    } else {
+        alert('❌ كلمة الدخول غير صحيحة.');
+    }
+}
+
+function clearLeaderboard() {
+    if (confirm('هل أنت متأكد من مسح جميع سجلات التصنيف؟')) {
+        localStorage.removeItem('leaderboard');
+        alert('✅ تم مسح التصنيف بنجاح.');
+    }
+}
+</script>
+</body>
+</html>
