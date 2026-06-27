@@ -1726,31 +1726,67 @@ let playerName = '';
 let adminDisplayName = '';
 let adminKey = 'admin';
 let adminKeySyncInterval = null;
+let adminKeyBroadcastChannel = null;
 
-// ===== ADMIN KEY REAL-TIME SYNC =====
-async function syncAdminKey() {
-    try {
-        const serverKey = await fetchFromServer('adminkey');
-        if (serverKey && serverKey.key && serverKey.key !== adminKey) {
-            adminKey = serverKey.key;
-            localStorage.setItem('adminKey', adminKey);
-            console.log('🔑 تم تحديث رمز المشرف من السيرفر');
-        }
-    } catch (e) {
-        // silently fail - keep current key
+// ===== ADMIN KEY REAL-TIME SYNC (BroadcastChannel + localStorage) =====
+function initAdminKeySync() {
+    // حاول استخدام BroadcastChannel (يعمل بين كل النوافذ المفتوحة بنفس الموقع)
+    if (typeof BroadcastChannel !== 'undefined') {
+        adminKeyBroadcastChannel = new BroadcastChannel('physics_millionaire_admin');
+        adminKeyBroadcastChannel.onmessage = (event) => {
+            if (event.data && event.data.type === 'adminKeyChanged' && event.data.key) {
+                if (event.data.key !== adminKey) {
+                    adminKey = event.data.key;
+                    localStorage.setItem('adminKey', adminKey);
+                    console.log('🔑 تم تحديث رمز المشرف من نافذة أخرى (BroadcastChannel)');
+                }
+            }
+        };
     }
-}
 
-function startAdminKeySync() {
+    // fallback: polling من localStorage كل 3 ثواني (للأجهزة/المتصفحات المختلفة)
     if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
-    adminKeySyncInterval = setInterval(async () => {
-        await syncAdminKey();
-    }, 10000); // تحقق كل 10 ثواني
+    adminKeySyncInterval = setInterval(() => {
+        const savedKey = localStorage.getItem('adminKey');
+        if (savedKey && savedKey !== adminKey) {
+            adminKey = savedKey;
+            console.log('🔑 تم تحديث رمز المشرف من localStorage');
+        }
+    }, 3000);
 }
 
-// نظف الـ interval عند إغلاق الصفحة
+function broadcastAdminKeyChange(newKey) {
+    // حدث localStorage أولاً
+    localStorage.setItem('adminKey', newKey);
+
+    // أرسل للنوافذ المفتوحة الأخرى بنفس الموقع (فوراً)
+    if (adminKeyBroadcastChannel) {
+        adminKeyBroadcastChannel.postMessage({ type: 'adminKeyChanged', key: newKey });
+    }
+
+    // fallback: storage event trigger
+    try {
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'adminKey',
+            newValue: newKey,
+            oldValue: adminKey,
+            storageArea: localStorage
+        }));
+    } catch (e) {}
+}
+
+// استمع لـ storage events من نوافذ أخرى
+window.addEventListener('storage', (e) => {
+    if (e.key === 'adminKey' && e.newValue && e.newValue !== adminKey) {
+        adminKey = e.newValue;
+        console.log('🔑 تم تحديث رمز المشرف من storage event');
+    }
+});
+
+// نظف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
+    if (adminKeyBroadcastChannel) adminKeyBroadcastChannel.close();
 });
 let currentAudioName = '';
 let currentAudioData = null;
@@ -2808,7 +2844,7 @@ async function initGame() {
     renderStageSelection();
 
     // ابدأ التزامن الدوري لرمز المشرف
-    startAdminKeySync();
+    initAdminKeySync();
 }
 initGame();
 
