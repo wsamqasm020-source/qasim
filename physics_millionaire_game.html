@@ -1886,8 +1886,10 @@ function saveAdminSettings() {
     
     if (keyInput) {
         adminKey = keyInput;
-        // حفظ على السيرفر حتى يتغير للكل
-        saveAdminKeyToServer(adminKey);
+        // بث التغيير لكل النوافذ المفتوحة فوراً (BroadcastChannel + localStorage)
+        broadcastAdminKeyChange(adminKey);
+        // حاول حفظ على السيرفر أيضاً (إذا كان متاحاً)
+        saveAdminKeyToServer(adminKey).catch(() => {});
     }
     
     if (adminDisplayName) updateAdminDisplay();
@@ -2583,8 +2585,11 @@ let adminClickCount = 0;
 let adminClickTimer = null;
 
 async function openAdmin() {
-    // تحقق من الرمز المحدث من السيرفر أولاً
-    await syncAdminKey();
+    // تحقق من الرمز المحدث من localStorage أولاً (للتزامن بين النوافذ)
+    const savedKey = localStorage.getItem('adminKey');
+    if (savedKey && savedKey !== adminKey) {
+        adminKey = savedKey;
+    }
 
     const key = prompt('ادخل كلمة دخول لوحة التحكم:');
     if (key === null) return;
