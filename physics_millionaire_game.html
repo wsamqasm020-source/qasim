@@ -1121,7 +1121,7 @@
                 <input type="password" id="adminKey" placeholder="اكتب كلمة الدخول الجديدة">
             </div>
             <p style="color: #a0a0a0; font-size: 0.95rem; margin-top: -5px;">اترك كلمة الدخول فارغة إذا لم ترد تغييرها.</p>
-            <button class="add-btn" onclick="saveAdminSettings()" style="margin-bottom: 10px;">💾 حفظ بيانات المشرف</button>
+            <button class="add-btn" onclick="saveAdminSettings().catch(()=>{})" style="margin-bottom: 10px;">💾 حفظ بيانات المشرف</button>
             <button class="add-btn" onclick="resetAdminKeyToDefault()" style="background: linear-gradient(45deg, #ff1744, #ff5252); margin-top: 8px;">🔄 إرجاع الرمز الافتراضي (admin)</button>
         </div>
 
@@ -1871,14 +1871,31 @@ function savePlayerName() {
     updatePlayerDisplay();
 }
 
-function saveAdminSettings() {
+async function saveAdminSettings() {
     const displayName = document.getElementById('adminDisplayName').value.trim();
     const keyInput = document.getElementById('adminKey').value.trim();
-    
+
     if (displayName) {
         adminDisplayName = displayName;
         localStorage.setItem('adminDisplayName', adminDisplayName);
     }
+
+    if (keyInput) {
+        adminKey = keyInput;
+        localStorage.setItem('adminKey', adminKey);
+        // حفظ على السيرفر (للكل)
+        try {
+            await saveAdminKeyToServer(adminKey);
+            console.log('✅ تم حفظ الرمز على السيرفر');
+        } catch (e) {
+            console.log('⚠️ السيرفر غير متاح، تم الحفظ محلياً فقط');
+        }
+    }
+
+    if (adminDisplayName) updateAdminDisplay();
+    document.getElementById('adminKey').value = '';
+    alert('✅ تم تحديث بيانات المشرف');
+}
     
     if (keyInput) {
         adminKey = keyInput;
