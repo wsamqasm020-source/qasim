@@ -197,14 +197,12 @@ def save_gamename():
     success = db_save('gamename', data)
     return jsonify({'success': success})
 
-
 @app.route('/api/adminkey', methods=['GET'])
 def get_adminkey():
     data = db_load('adminkey')
-    if data is None:
-        data = {'key': 'admin'}  # default
+    if data is None: data = {'key': 'admin'}
     response = jsonify(data)
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Cache-Control'] = 'no-store'
     return response
 
 @app.route('/api/adminkey', methods=['POST'])

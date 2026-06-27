@@ -1053,6 +1053,7 @@
     </style>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -1871,7 +1872,7 @@ function savePlayerName() {
     updatePlayerDisplay();
 }
 
-function saveAdminSettings() {
+async function saveAdminSettings() {
     const displayName = document.getElementById('adminDisplayName').value.trim();
     const keyInput = document.getElementById('adminKey').value.trim();
     
@@ -1882,10 +1883,9 @@ function saveAdminSettings() {
     
     if (keyInput) {
         adminKey = keyInput;
-        // بث التغيير لكل النوافذ المفتوحة فوراً (BroadcastChannel + localStorage)
-        broadcastAdminKeyChange(adminKey);
-        // حاول حفظ على السيرفر أيضاً (إذا كان متاحاً)
-        saveAdminKeyToServer(adminKey).catch(() => {});
+        localStorage.setItem('adminKey', adminKey);
+        // حفظ على السيرفر (للكل)
+        await saveAdminKeyToServer(adminKey);
     }
     
     if (adminDisplayName) updateAdminDisplay();
