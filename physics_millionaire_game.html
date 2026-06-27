@@ -1513,6 +1513,27 @@ async function saveToServer(endpoint, data) {
     }
 }
 
+// ==================== ADMIN KEY SYNC ====================
+
+async function loadAdminKeyFromServer() {
+    const serverKey = await fetchFromServer('adminkey');
+    if (serverKey && serverKey.key) {
+        adminKey = serverKey.key;
+        localStorage.setItem('adminKey', adminKey);
+        return;
+    }
+    // إذا السيرفر ما يشتغل، خذ من localStorage
+    const saved = localStorage.getItem('adminKey');
+    if (saved) adminKey = saved;
+}
+
+async function saveAdminKeyToServer(newKey) {
+    const saved = await saveToServer('adminkey', { key: newKey });
+    localStorage.setItem('adminKey', newKey);
+    return saved;
+}
+
+
 // ==================== GAME DATA ====================
 let defaultQuestions = [
     {
@@ -1759,7 +1780,10 @@ async function resetGameName() {
 function loadNamesFromStorage() {
     playerName = localStorage.getItem('playerName') || '';
     adminDisplayName = localStorage.getItem('adminDisplayName') || '';
-    adminKey = localStorage.getItem('adminKey') || 'admin';
+    
+    // تحميل الرمز من السيرفر أولاً
+    loadAdminKeyFromServer();
+    
     const playerInput = document.getElementById('playerName');
     const adminDisplayInput = document.getElementById('adminDisplayName');
     if (playerInput) playerInput.value = playerName;
@@ -1793,14 +1817,18 @@ function savePlayerName() {
 function saveAdminSettings() {
     const displayName = document.getElementById('adminDisplayName').value.trim();
     const keyInput = document.getElementById('adminKey').value.trim();
+    
     if (displayName) {
         adminDisplayName = displayName;
         localStorage.setItem('adminDisplayName', adminDisplayName);
     }
+    
     if (keyInput) {
         adminKey = keyInput;
-        localStorage.setItem('adminKey', adminKey);
+        // حفظ على السيرفر حتى يتغير للكل
+        saveAdminKeyToServer(adminKey);
     }
+    
     if (adminDisplayName) updateAdminDisplay();
     document.getElementById('adminKey').value = '';
     alert('✅ تم تحديث بيانات المشرف');
