@@ -1517,25 +1517,7 @@ async function saveToServer(endpoint, data) {
 
 // ==================== ADMIN KEY SYNC ====================
 async function loadAdminKeyFromServer() {
-    // أولاً: حاول من السيرفر
-    try {
-        const serverKey = await fetchFromServer('adminkey');
-        if (serverKey && serverKey.key) {
-            adminKey = serverKey.key;
-            localStorage.setItem('adminKey', adminKey);
-            return;
-        }
-    } catch (e) {}
-
-    // ثانياً: حاول من localStorage
-    const saved = localStorage.getItem('adminKey');
-    if (saved) {
-        adminKey = saved;
-    } else {
-        // ثالثاً: استخدم الافتراضي
-        adminKey = DEFAULT_ADMIN_KEY;
-        localStorage.setItem('adminKey', adminKey);
-    }
+    await syncAdminKeyFromServer();
 }
 
 async function saveAdminKeyToServer(newKey) {
@@ -1738,98 +1720,69 @@ let playerName = '';
 let adminDisplayName = '';
 let adminKey = 'admin';
 let adminKeySyncInterval = null;
-let adminKeyBroadcastChannel = null;
 const DEFAULT_ADMIN_KEY = 'admin';
 
-// ===== ADMIN KEY REAL-TIME SYNC (BroadcastChannel + localStorage + Polling) =====
-function initAdminKeySync() {
-    // 1. BroadcastChannel - فوري بين نوافذ نفس المتصفح
-    if (typeof BroadcastChannel !== 'undefined') {
-        try {
-            adminKeyBroadcastChannel = new BroadcastChannel('physics_millionaire_admin');
-            adminKeyBroadcastChannel.onmessage = (event) => {
-                if (event.data && event.data.type === 'adminKeyChanged' && event.data.key) {
-                    if (event.data.key !== adminKey) {
-                        adminKey = event.data.key;
-                        localStorage.setItem('adminKey', adminKey);
-                        console.log('🔑 تم تحديث رمز المشرف من BroadcastChannel');
-                    }
-                }
-            };
-        } catch (e) {
-            console.log('BroadcastChannel not available');
+// ===== ADMIN KEY SYNC (Server-based + localStorage fallback) =====
+async function syncAdminKeyFromServer() {
+    try {
+        const res = await fetch('/api/adminkey?t=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!res.ok) throw new Error('Server error');
+        const data = await res.json();
+        if (data && data.key && data.key !== adminKey) {
+            adminKey = data.key;
+            localStorage.setItem('adminKey', adminKey);
+            console.log('🔑 تم تحديث رمز المشرف من السيرفر:', adminKey);
+        }
+    } catch (e) {
+        // Fallback: read from localStorage
+        const saved = localStorage.getItem('adminKey');
+        if (saved && saved !== adminKey) {
+            adminKey = saved;
         }
     }
+}
 
-    // 2. استمع لـ storage events (يعمل بين نوافذ نفس المتصفح)
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'adminKey' && e.newValue && e.newValue !== adminKey) {
-            adminKey = e.newValue;
-            console.log('🔑 تم تحديث رمز المشرف من storage event');
-        }
-    });
+function startAdminKeySync() {
+    // Sync immediately
+    syncAdminKeyFromServer();
 
-    // 3. Polling - يعمل حتى بين أجهزة مختلفة (كل 2 ثانية)
+    // Then sync every 3 seconds
     if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
     adminKeySyncInterval = setInterval(() => {
-        const savedKey = localStorage.getItem('adminKey');
-        if (savedKey && savedKey !== adminKey) {
-            adminKey = savedKey;
-            console.log('🔑 تم تحديث رمز المشرف من localStorage polling');
-        }
-    }, 2000);
+        syncAdminKeyFromServer();
+    }, 3000);
 }
 
-function broadcastAdminKeyChange(newKey) {
-    // حدث المتغير المحلي
-    adminKey = newKey;
-    // حدث localStorage
-    localStorage.setItem('adminKey', newKey);
-
-    // 1. أرسل للنوافذ المفتوحة بنفس المتصفح (فوراً)
-    if (adminKeyBroadcastChannel) {
-        try {
-            adminKeyBroadcastChannel.postMessage({ type: 'adminKeyChanged', key: newKey });
-        } catch (e) {}
-    }
-
-    // 2. اطلق storage event يدوياً (fallback)
+async function saveAdminKeyToServer(newKey) {
     try {
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: 'adminKey',
-            newValue: newKey,
-            oldValue: adminKey,
-            storageArea: localStorage
-        }));
-    } catch (e) {}
+        const res = await fetch('/api/adminkey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: newKey })
+        });
+        return res.ok;
+    } catch (e) {
+        return false;
+    }
 }
 
-function resetAdminKeyToDefault() {
+async function resetAdminKeyToDefault() {
     if (!confirm('هل أنت متأكد من إرجاع الرمز إلى الافتراضي (admin)؟')) return;
 
     adminKey = DEFAULT_ADMIN_KEY;
     localStorage.setItem('adminKey', DEFAULT_ADMIN_KEY);
 
-    // بث التغيير للكل
-    if (adminKeyBroadcastChannel) {
-        try {
-            adminKeyBroadcastChannel.postMessage({ type: 'adminKeyChanged', key: DEFAULT_ADMIN_KEY });
-        } catch (e) {}
-    }
-
-    // حاول حفظ على السيرفر
-    saveAdminKeyToServer(DEFAULT_ADMIN_KEY).catch(() => {});
+    // Save to server
+    await saveAdminKeyToServer(DEFAULT_ADMIN_KEY);
 
     alert('✅ تم إرجاع الرمز إلى الافتراضي (admin)');
-    console.log('🔑 تم إرجاع الرمز إلى الافتراضي');
 }
 
-// نظف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
     if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
-    if (adminKeyBroadcastChannel) {
-        try { adminKeyBroadcastChannel.close(); } catch (e) {}
-    }
 });
 let currentAudioName = '';
 let currentAudioData = null;
@@ -2628,11 +2581,8 @@ let adminClickCount = 0;
 let adminClickTimer = null;
 
 async function openAdmin() {
-    // تحقق من الرمز المحدث من localStorage أولاً (للتزامن بين النوافذ)
-    const savedKey = localStorage.getItem('adminKey');
-    if (savedKey && savedKey !== adminKey) {
-        adminKey = savedKey;
-    }
+    // تحقق من الرمز المحدث من السيرفر أولاً
+    await syncAdminKeyFromServer();
 
     const key = prompt('ادخل كلمة دخول لوحة التحكم:');
     if (key === null) return;
@@ -2892,7 +2842,7 @@ async function initGame() {
     renderStageSelection();
 
     // ابدأ التزامن الدوري لرمز المشرف
-    initAdminKeySync();
+    startAdminKeySync();
 }
 initGame();
 

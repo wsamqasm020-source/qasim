@@ -46,6 +46,7 @@ def init_db():
 
     # Default data
     defaults = {
+        'adminkey': {'key': 'admin'},
         'questions': [],
         'stages': [
             {"id": 1, "title": "التدريب الأول", "description": "أسئلة سهلة لتبدأ رحلتك.", "difficultyLevels": [1], "questionsCount": 5, "passPercent": 60, "unlocked": True},
@@ -194,6 +195,22 @@ def get_gamename():
 def save_gamename():
     data = request.get_json()
     success = db_save('gamename', data)
+    return jsonify({'success': success})
+
+
+@app.route('/api/adminkey', methods=['GET'])
+def get_adminkey():
+    data = db_load('adminkey')
+    if data is None:
+        data = {'key': 'admin'}  # default
+    response = jsonify(data)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return response
+
+@app.route('/api/adminkey', methods=['POST'])
+def save_adminkey():
+    data = request.get_json()
+    success = db_save('adminkey', data)
     return jsonify({'success': success})
 
 @app.route('/')
