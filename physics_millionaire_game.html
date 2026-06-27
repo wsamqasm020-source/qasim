@@ -1514,7 +1514,6 @@ async function saveToServer(endpoint, data) {
 }
 
 // ==================== ADMIN KEY SYNC ====================
-
 async function loadAdminKeyFromServer() {
     const serverKey = await fetchFromServer('adminkey');
     if (serverKey && serverKey.key) {
@@ -1522,7 +1521,6 @@ async function loadAdminKeyFromServer() {
         localStorage.setItem('adminKey', adminKey);
         return;
     }
-    // إذا السيرفر ما يشتغل، خذ من localStorage
     const saved = localStorage.getItem('adminKey');
     if (saved) adminKey = saved;
 }
@@ -1532,7 +1530,6 @@ async function saveAdminKeyToServer(newKey) {
     localStorage.setItem('adminKey', newKey);
     return saved;
 }
-
 
 // ==================== GAME DATA ====================
 let defaultQuestions = [
