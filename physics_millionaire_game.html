@@ -1052,6 +1052,7 @@
         }
     </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -1724,6 +1725,33 @@ async function saveStageSettingsToStorage() {
 let playerName = '';
 let adminDisplayName = '';
 let adminKey = 'admin';
+let adminKeySyncInterval = null;
+
+// ===== ADMIN KEY REAL-TIME SYNC =====
+async function syncAdminKey() {
+    try {
+        const serverKey = await fetchFromServer('adminkey');
+        if (serverKey && serverKey.key && serverKey.key !== adminKey) {
+            adminKey = serverKey.key;
+            localStorage.setItem('adminKey', adminKey);
+            console.log('🔑 تم تحديث رمز المشرف من السيرفر');
+        }
+    } catch (e) {
+        // silently fail - keep current key
+    }
+}
+
+function startAdminKeySync() {
+    if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
+    adminKeySyncInterval = setInterval(async () => {
+        await syncAdminKey();
+    }, 10000); // تحقق كل 10 ثواني
+}
+
+// نظف الـ interval عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+    if (adminKeySyncInterval) clearInterval(adminKeySyncInterval);
+});
 let currentAudioName = '';
 let currentAudioData = null;
 let currentAudioVolume = 0.8;
@@ -2519,6 +2547,9 @@ let adminClickCount = 0;
 let adminClickTimer = null;
 
 async function openAdmin() {
+    // تحقق من الرمز المحدث من السيرفر أولاً
+    await syncAdminKey();
+
     const key = prompt('ادخل كلمة دخول لوحة التحكم:');
     if (key === null) return;
     if (key.trim() === adminKey) {
@@ -2775,6 +2806,9 @@ async function initGame() {
     stages = await loadStageSettingsFromStorage();
     selectedStage = stages.find(stage => stage.id === selectedStageId) || stages[0];
     renderStageSelection();
+
+    // ابدأ التزامن الدوري لرمز المشرف
+    startAdminKeySync();
 }
 initGame();
 
